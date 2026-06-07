@@ -695,13 +695,25 @@
        ═══════════════════════════════════════ */
     @media (max-width: 768px) {
 
+        /* html/bodyのoverflow解除 */
+        html, body {
+            overflow: auto !important;
+            height: auto !important;
+        }
+
         /* シェル：縦並びに変更 */
         #shell {
             grid-template-columns: 1fr;
             grid-template-rows: auto 1fr;
-            height: auto;
+            height: auto !important;
             min-height: 100vh;
-            overflow: visible;
+            overflow: visible !important;
+        }
+
+        /* ステージのoverflow解除 */
+        #stage {
+            overflow: visible !important;
+            height: auto !important;
         }
 
         /* サイドバー：横幅100%・折りたたみ可能 */
