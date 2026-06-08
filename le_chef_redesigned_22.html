@@ -212,6 +212,9 @@
             justify-content: center;
             min-height: 100vh;
             padding: 80px 72px;
+            overflow: hidden;
+            max-width: calc(100% - 0px);
+            box-sizing: border-box;
         }
         .welcome-eyebrow {
             font-size: 9px;
@@ -224,11 +227,12 @@
         .welcome-headline {
             font-family: 'Cormorant Garamond', serif;
             font-weight: 300;
-            font-size: clamp(36px, 4vw, 56px);
+            font-size: clamp(24px, 5vw, 72px);
             color: var(--ivory);
-            line-height: 1.3;
-            letter-spacing: 1px;
+            line-height: 1.5;
+            letter-spacing: 0.5px;
             margin-bottom: 24px;
+            white-space: nowrap;
         }
         .welcome-headline em {
             font-style: italic;
@@ -676,6 +680,16 @@
         .log-scroll::-webkit-scrollbar-thumb { background: var(--border-thin); }
 
         /* Log memo */
+        .log-food-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .log-memo-btn {
+            background: none; border: none; cursor: pointer;
+            font-size: 9px; letter-spacing: 1px;
+            color: var(--mist); padding: 2px 6px;
+            border: 1px solid var(--border-thin); border-radius: 2px;
+            transition: all 0.2s; flex-shrink: 0;
+            font-family: inherit;
+        }
+        .log-memo-btn:hover { color: var(--gold); border-color: var(--gold); }
         .log-memo-row { margin-top: 6px; }
         .log-memo-input {
             width: 100%; padding: 5px 8px;
@@ -840,11 +854,11 @@
             <div class="ornament"><span>Consultation</span></div>
             <div class="field">
                 <div class="field-label"><span class="lnum">1</span> 本日の厳選食材</div>
-                <input type="text" id="ingredients" placeholder="例: 牛すじ、ごぼう、こんにゃく">
+                <input type="text" id="ingredients" placeholder="">
             </div>
             <div class="field">
                 <div class="field-label"><span class="lnum">2</span> 調理キーワード</div>
-                <input type="text" id="keywords" placeholder="例: 低温調理、鍋、燻製、マリネ…">
+                <input type="text" id="keywords" placeholder="">
                 <div style="font-size:9px;color:var(--mist);margin-top:5px;letter-spacing:1px;">調理法・スタイルを自由入力。空欄でおまかせ。</div>
             </div>
             <div class="field">
@@ -920,7 +934,7 @@
             <div id="menu-grid"></div>
             <div id="outro-wrap">
                 <div class="outro-text" id="outro-text"></div>
-                <div id="quick-box"></div>
+                <div id="quick-actions"></div>
             </div>
         </div>
     </main>
@@ -933,6 +947,31 @@
             <div class="panel-section-title">Journal de Repas</div>
             <div class="log-scroll" id="log-timeline">
                 <div class="no-entry">記録されたメニューがここに蓄積されます。</div>
+            </div>
+        </div>
+        <div>
+            <div class="panel-section-title">My Recipe Book</div>
+            <div class="log-scroll" id="book-list">
+                <div class="no-entry">保存されたレシピはありません。</div>
+            </div>
+            <div class="manual-recipe">
+                <div class="manual-title">手動でレシピを登録</div>
+                <div class="field">
+                    <input type="text" id="customTitle" placeholder="料理名">
+                </div>
+                <div class="field" style="margin-top:8px;">
+                    <textarea id="customDetail" placeholder="材料や手順を入力"></textarea>
+                </div>
+                <div id="photoUploadArea">
+                    <label for="customPhoto" id="photoUploadLabel">
+                        <span id="photoUploadText">📷 写真を追加（任意）</span>
+                    </label>
+                    <input type="file" id="customPhoto" accept="image/*,.heic,.heif" onchange="previewPhoto(this)">
+                    <div id="photoPreviewWrap" style="display:none;">
+                        <img id="photoPreview" alt="プレビュー">
+                    </div>
+                </div>
+                <button class="add-btn" onclick="addCustomRecipe()">レシピブックに追加</button>
             </div>
         </div>
     </div>
@@ -1040,27 +1079,47 @@
         sorted.forEach(log => {
             const item = document.createElement('div');
             item.className = 'log-item';
+
+            // メモボタン（クリックで入力欄を開閉）
+            const hasMemo = log.memo && log.memo.trim();
             item.innerHTML = `
                 <div class="log-date">${log.dateDisplay}</div>
-                <div class="log-food">✦ ${log.food}</div>
+                <div class="log-food-row">
+                    <span class="log-food">✦ ${log.food}</span>
+                    <button class="log-memo-btn" title="メモを追加">${hasMemo ? '✎ メモあり' : '✎'}</button>
+                </div>
                 <div class="log-drink">${log.drink}</div>
             `;
+
+            // メモ入力欄（初期非表示）
             const memoRow = document.createElement('div');
             memoRow.className = 'log-memo-row';
+            memoRow.style.display = 'none';
             const memoInput = document.createElement('input');
             memoInput.type = 'text';
             memoInput.className = 'log-memo-input';
             memoInput.placeholder = 'メモ（例：塩を足したら◎）';
             memoInput.value = log.memo || '';
             memoInput.addEventListener('change', e => {
-                const idx = mealLogs.findIndex(l => l.date === log.date && l.food === log.food);
-                if (idx >= 0) {
-                    mealLogs[idx].memo = e.target.value.trim();
+                const i = mealLogs.findIndex(l => l.date === log.date && l.food === log.food);
+                if (i >= 0) {
+                    mealLogs[i].memo = e.target.value.trim();
                     localStorage.setItem('le_chef_logs', JSON.stringify(mealLogs));
+                    btn.textContent = mealLogs[i].memo ? '✎ メモあり' : '✎';
                 }
             });
             memoRow.appendChild(memoInput);
             item.appendChild(memoRow);
+
+            // ボタンクリックで開閉
+            const btn = item.querySelector('.log-memo-btn');
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const isOpen = memoRow.style.display !== 'none';
+                memoRow.style.display = isOpen ? 'none' : 'block';
+                if (!isOpen) memoInput.focus();
+            });
+
             el.appendChild(item);
         });
     }
@@ -1590,33 +1649,41 @@
 
     /* ── Famous food quotes ── */
     const FOOD_QUOTES = [
-        { text: "料理は愛情である。材料と、そして心を込めて作るものだ。", author: "オーギュスト・エスコフィエ" },
-        { text: "あなたが何を食べているか言ってみなさい。あなたが何者かを言い当ててみせよう。", author: "ジャン・アンテルム・ブリア＝サヴァラン" },
-        { text: "よく食べなければ、よく考えることも、よく愛することも、よく眠ることもできない。", author: "ヴァージニア・ウルフ" },
-        { text: "食べることは、一日に三度与えられた幸福の機会である。", author: "ギー・ドゥ・モーパッサン" },
-        { text: "料理とは、素材への深い敬意から始まる。", author: "ジョエル・ロビュション" },
-        { text: "美味しい料理を作る秘訣は、まず料理を愛することだ。", author: "ジェームズ・ビアード" },
-        { text: "食は人生の最大の喜びの一つ。それを軽んじる者は愚かだ。", author: "ジュリア・チャイルド" },
-        { text: "レシピに魂はない。魂を吹き込むのは、料理人であるあなた自身だ。", author: "トーマス・ケラー" },
-        { text: "素材の声を聴け。料理人はその通訳に過ぎない。", author: "北大路魯山人" },
-        { text: "料理は恋愛と同じ。夢中になってやるか、やらないかの、どちらかしかない。", author: "ハリエット・ヴァン・ホーン" },
-        { text: "食べるという行為は、単なる栄養摂取ではなく、文化そのものだ。", author: "辻静雄" },
-        { text: "新しい料理の発見は、新しい星の発見よりも、人類の幸福に貢献する。", author: "ジャン・アンテルム・ブリア＝サヴァラン" },
-        { text: "食は記憶を呼び起こし、場所と時間を超える。", author: "マルセル・プルースト" },
-        { text: "食べることは必要だが、知性をもって食べることは芸術だ。", author: "フランソワ・ド・ラ・ロシュフコー" },
-        { text: "美食とは、舌の記憶である。", author: "北大路魯山人" },
-        { text: "料理においても、あらゆる芸術においても、シンプルさこそ完璧の証だ。", author: "キュルノンスキー" },
-        { text: "食卓は人と人をつなぐ最も美しい場所だ。", author: "アレクサンドル・デュマ" },
-        { text: "料理人は芸術家であり、食卓は彼らのキャンバスだ。", author: "ポール・ボキューズ" },
-        { text: "食べることは生きること。よく食べることはよく生きることだ。", author: "オーギュスト・エスコフィエ" },
-        { text: "人は食べるために生きるのではなく、生きるために食べる。しかし美食家はその逆だ。", author: "ブリア＝サヴァラン" },
+        { text: "素材の声を聴け。", author: "北大路魯山人" },
+        { text: "美食とは舌の記憶だ。", author: "北大路魯山人" },
+        { text: "料理は人柄だ。", author: "北大路魯山人" },
+        { text: "食えぬ料理に芸術はない。", author: "北大路魯山人" },
+        { text: "食は文化の根本だ。", author: "辻静雄" },
+        { text: "食べる行為は文化だ。", author: "辻静雄" },
+        { text: "一汁一菜でよい。", author: "土井善晴" },
+        { text: "料理は愛情の表現だ。", author: "土井善晴" },
+        { text: "旬を食うことが滋養だ。", author: "魯山人" },
+        { text: "手間を惜しむな、素材に誠実であれ。", author: "辻嘉一" },
+        { text: "料理は愛情だ。", author: "オーギュスト・エスコフィエ" },
+        { text: "素材の声を聴けば、料理は生まれる。", author: "服部幸應" },
+        { text: "食べるものが、その人を作る。", author: "ブリア＝サヴァラン" },
+        { text: "よく食べなければ、よく生きられない。", author: "ヴァージニア・ウルフ" },
+        { text: "魂を吹き込むのは料理人だ。", author: "トーマス・ケラー" },
+        { text: "料理の発見は星の発見に勝る。", author: "ブリア＝サヴァラン" },
+        { text: "食は記憶を呼び、時間を超える。", author: "マルセル・プルースト" },
+        { text: "料理のシンプルさは完璧の証だ。", author: "キュルノンスキー" },
+        { text: "食卓は最も美しい場所だ。", author: "アレクサンドル・デュマ" },
+        { text: "美食家は生きるために食べない。", author: "ブリア＝サヴァラン" },
+        { text: "料理とは素材への敬意だ。", author: "ジョエル・ロビュション" },
+        { text: "よく食べることはよく生きることだ。", author: "エスコフィエ" },
+        { text: "一期一食、真剣に向き合え。", author: "辻嘉一" },
+        { text: "和食の心は引き算にある。", author: "辻静雄" },
+        { text: "だしは料理の魂だ。", author: "湯木貞一" },
     ];
 
     function setWelcomeQuote() {
         const q = FOOD_QUOTES[Math.floor(Math.random() * FOOD_QUOTES.length)];
         const textEl = document.getElementById('welcome-quote-text');
         const authorEl = document.getElementById('welcome-quote-author');
-        if (textEl) textEl.innerHTML = `<em>"${q.text}"</em>`;
+        if (!textEl) return;
+
+        const text = q.text;
+        textEl.innerHTML = `<em>"${text}"</em>`;
         if (authorEl) authorEl.textContent = `— ${q.author}`;
     }
 
