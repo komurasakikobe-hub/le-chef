@@ -697,8 +697,12 @@
 
         /* html/bodyのoverflow解除 */
         html, body {
-            overflow: auto !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
             height: auto !important;
+            min-height: 100vh !important;
+            -webkit-overflow-scrolling: touch !important;
+            touch-action: pan-y !important;
         }
 
         /* シェル：縦並びに変更 */
@@ -713,6 +717,13 @@
         /* ステージのoverflow解除 */
         #stage {
             overflow: visible !important;
+            height: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        /* サイドバーのoverflow解除 */
+        #sidebar {
+            overflow-y: visible !important;
             height: auto !important;
         }
 
@@ -840,6 +851,7 @@
                 <div class="field-label"><span class="lnum">3</span> 提案の目的</div>
                 <select id="purpose">
                     <option value="夕食のメイン">夕食のメイン</option>
+                    <option value="ランチ・昼食">ランチ・昼食</option>
                     <option value="お酒が進む一品料理">お酒が進む一品料理</option>
                     <option value="バランスの良い献立全体">バランスの良い献立全体</option>
                     <option value="軽めの晩酌おつまみ">軽めの晩酌おつまみ</option>
@@ -1451,11 +1463,15 @@
         currentMenus = [];
 
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
             const res = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MY_API_KEY}` },
-                body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], stream: true })
+                body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], stream: true }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
